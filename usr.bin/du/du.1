@@ -51,6 +51,14 @@ argument.
 If no file is specified, the block usage of the hierarchy rooted in
 the current directory is displayed.
 .Pp
+Normally block usage closely resembles the file size, but this is
+not always the case.
+For files with an incomplete last block, the size will be larger.
+The size includes any metadata such as indirect blocks, though not the
+inode.
+For sparse files or file systems that defer writing data to disk the
+count will be less than the file size.
+.Pp
 The options are as follows:
 .Bl -tag -width indent
 .It Fl -libxo

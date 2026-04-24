@@ -82,13 +82,13 @@ ibs_read_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t *v)
 	KASSERT(ibs_pcpu[cpu],
 	    ("[ibs,%d] null per-cpu, cpu %d", __LINE__, cpu));
 
-	/* read the IBS ctl */
+	/* read the IBS count */
 	switch (ri) {
 	case IBS_PMC_FETCH:
-		*v = rdmsr(IBS_FETCH_CTL);
+		*v = IBS_FETCH_CTL_TO_COUNT(rdmsr(IBS_FETCH_CTL));
 		break;
 	case IBS_PMC_OP:
-		*v = rdmsr(IBS_OP_CTL);
+		*v = IBS_OP_CTL_TO_COUNT(rdmsr(IBS_OP_CTL));
 		break;
 	}
 
@@ -103,11 +103,30 @@ ibs_read_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t *v)
 static int
 ibs_write_pmc(int cpu, int ri, struct pmc *pm, pmc_value_t v)
 {
+	pmc_value_t m;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[ibs,%d] illegal CPU value %d", __LINE__, cpu));
 	KASSERT(ri >= 0 && ri < IBS_NPMCS,
 	    ("[ibs,%d] illegal row-index %d", __LINE__, ri));
+
+	/* write the IBS count */
+	switch (ri) {
+	case IBS_PMC_FETCH:
+		m = rdmsr(IBS_FETCH_CTL) & ~IBS_FETCH_CTL_CURCNTMASK;
+		/* Setting a count greater than interval is undefined. */
+		if (IBS_FETCH_CTL_TO_INTERVAL(m) > v)
+			m |= IBS_FETCH_COUNT_TO_CTL(v);
+		wrmsr(IBS_FETCH_CTL, m);
+		break;
+	case IBS_PMC_OP:
+		m = rdmsr(IBS_OP_CTL) & ~IBS_OP_CTL_CURCNTMASK;
+		/* Setting a count greater than interval is undefined */
+		if (IBS_OP_CTL_TO_INTERVAL(m) > v)
+			m |= IBS_OP_COUNT_TO_CTL(v);
+		wrmsr(IBS_OP_CTL, m);
+		break;
+	}
 
 	PMCDBG3(MDP, WRI, 1, "ibs-write cpu=%d ri=%d v=%jx", cpu, ri, v);
 
@@ -175,6 +194,9 @@ ibs_allocate_pmc(int cpu __unused, int ri, struct pmc *pm,
 	PMCDBG2(MDP, ALL, 1, "ibs-allocate ri=%d caps=0x%x", ri, caps);
 
 	if ((caps & PMC_CAP_SYSTEM) == 0)
+		return (EINVAL);
+
+	if (!PMC_IS_SAMPLING_MODE(a->pm_mode))
 		return (EINVAL);
 
 	config = a->pm_md.pm_ibs.ibs_ctl;
@@ -270,7 +292,7 @@ ibs_stop_pmc(int cpu __diagused, int ri, struct pmc *pm)
 	 * Turn off the ENABLE bit, but unfortunately there are a few quirks
 	 * that generate excess NMIs.  Workaround #420 in the Revision Guide
 	 * for AMD Family 10h Processors 41322 Rev. 3.92 March 2012. requires
-	 * that we clear the count before clearing enable.
+	 * that we clear the max count before clearing enable.
 	 *
 	 * Even after clearing the counter spurious NMIs are still possible so
 	 * we use a per-CPU atomic variable to notify the interrupt handler we
@@ -290,7 +312,7 @@ ibs_stop_pmc(int cpu __diagused, int ri, struct pmc *pm)
 		wrmsr(IBS_FETCH_CTL, config);
 		break;
 	case IBS_PMC_OP:
-		wrmsr(IBS_FETCH_CTL, config & ~IBS_FETCH_CTL_MAXCNTMASK);
+		wrmsr(IBS_OP_CTL, config & ~IBS_OP_CTL_MAXCNTMASK);
 		DELAY(1);
 		config &= ~IBS_OP_CTL_ENABLE;
 		wrmsr(IBS_OP_CTL, config);
@@ -342,6 +364,8 @@ pmc_ibs_process_fetch(struct pmc *pm, struct trapframe *tf, uint64_t config)
 	}
 
 	pmc_process_interrupt_mp(PMC_HR, pm, tf, &mpd);
+
+	wrmsr(IBS_FETCH_CTL, pm->pm_md.pm_ibs.ibs_ctl | IBS_FETCH_CTL_ENABLE);
 }
 
 static void

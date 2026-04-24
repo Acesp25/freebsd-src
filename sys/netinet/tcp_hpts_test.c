@@ -35,6 +35,7 @@
 #include <sys/mutex.h>
 #include <sys/refcount.h>
 #include <sys/socket.h>
+#include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
@@ -175,7 +176,6 @@ dump_tcpcb(struct tcpcb *tp)
 
 	/* Input PCB fields that HPTS uses */
 	KTEST_LOG(ctx, "  inp_flags: 0x%x", inp->inp_flags);
-	KTEST_LOG(ctx, "    INP_DROPPED: %s", (inp->inp_flags & INP_DROPPED) ? "YES" : "NO");
 	KTEST_LOG(ctx, "  inp_flowid: 0x%x", inp->inp_flowid);
 	KTEST_LOG(ctx, "  inp_flowtype: %u", inp->inp_flowtype);
 	KTEST_LOG(ctx, "  inp_numa_domain: %d", inp->inp_numa_domain);
@@ -370,9 +370,15 @@ static struct tcpcb *
 test_hpts_create_tcpcb(struct ktest_test_context *ctx, struct tcp_hptsi *pace)
 {
 	struct tcpcb *tp;
+	struct socket *so;
 
 	tp = malloc(sizeof(struct tcpcb), M_TCPHPTS, M_WAITOK | M_ZERO);
 	if (tp) {
+		so = malloc(sizeof(struct socket), M_TCPHPTS,
+		    M_WAITOK | M_ZERO);
+		so->so_vnet = curvnet;
+		tp->t_inpcb.inp_socket = so;
+
 		rw_init_flags(&tp->t_inpcb.inp_lock, "test-inp",
 			RW_RECURSE | RW_DUPOK);
 		refcount_init(&tp->t_inpcb.inp_refcount, 1);
@@ -400,6 +406,7 @@ test_hpts_free_tcpcb(struct tcpcb *tp)
 		return;
 
 	INP_LOCK_DESTROY(&tp->t_inpcb);
+	free(tp->t_inpcb.inp_socket, M_TCPHPTS);
 	free(tp, M_TCPHPTS);
 }
 
@@ -585,7 +592,7 @@ KTEST_FUNC(tcpcb_initialization)
 	KTEST_EQUAL(tp->t_lro_cpu, 0);
 	KTEST_VERIFY(tp->t_hpts_cpu < pace->rp_num_hptss);
 	KTEST_EQUAL(tp->t_inpcb.inp_refcount, 1);
-	KTEST_VERIFY(!(tp->t_inpcb.inp_flags & INP_DROPPED));
+	KTEST_VERIFY(!(tp->t_flags & TF_DISCONNECTED));
 
 	test_hpts_free_tcpcb(tp);
 	tcp_hptsi_stop(pace);
