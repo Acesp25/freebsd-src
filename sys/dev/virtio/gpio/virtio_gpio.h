@@ -56,7 +56,7 @@
 #define VIRTIO_GPIO_IRQ_TYPE_LEVEL_LOW          0x08 
 
 struct virtio_gpio_config {
-        uint16_t ngpio;
+        uint16_t ngpio; /* little endian */
         uint8_t padding[2];
         uint32_t gpio_names_size; /* little endian */
 } __packed;
@@ -84,7 +84,7 @@ struct virtio_gpio_response_names {
 
 /* Virtio GPIO IRQ Request / Response */
 struct virtio_gpio_irq_request {
-        uint16_t gpio; /* little endian */
+	uint16_t gpio; /* little endian */
 } __packed;
 
 struct virtio_gpio_irq_response {
@@ -95,4 +95,4 @@ struct virtio_gpio_irq_response {
 #define VIRTIO_GPIO_IRQ_STATUS_INVALID          0x0
 #define VIRTIO_GPIO_IRQ_STATUS_VALID            0x1
 
-#endif /* _VIRTIO_GPIO_H */
+#endif /* _VIRTIO_GPIO_H */ 
