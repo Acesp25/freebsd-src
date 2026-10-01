@@ -415,6 +415,64 @@ int ifconfig_carp_get_info(ifconfig_handle_t *h, const char *name,
 int ifconfig_carp_set_info(ifconfig_handle_t *h, const char *name,
     const struct ifconfig_carp *carpr);
 
+struct ifconfig_veb_port {
+	char		ifname[IFNAMSIZ];
+	uint32_t	maxaddr;
+	bool		learning;
+	bool		discover;
+	bool		sticky;
+	bool		private;
+	bool		vport;
+};
+
+struct ifconfig_veb_rtnode {
+	char		port[IFNAMSIZ];
+	struct ether_addr mac;
+	ether_vlanid_t	vlan;
+	uint8_t		type;
+	uint32_t	expire;
+};
+
+struct ifconfig_veb_status {
+	struct ifconfig_veb_port *ports;
+	uint32_t	numports;
+	uint32_t	timeout;
+	uint32_t	maxaddr;
+	uint32_t	exceeded;	
+};
+
+enum {
+	IFCONFIG_VEB_PORT_LEARNING,
+	IFCONFIG_VEB_PORT_DISCOVER,
+	IFCONFIG_VEB_PORT_STICKY,
+	IFCONFIG_VEB_PORT_PRIVATE,
+};
+
+int ifconfig_veb_get_veb_status(ifconfig_handle_t *h,
+    const char *ifname, struct ifconfig_veb_status **veb_status);
+void ifconfig_veb_free_veb_status(struct ifconfig_veb_status *veb_status);
+int ifconfig_veb_showaddr(ifconfig_handle_t *h, const char *ifname,
+    struct ifconfig_veb_rtnode **vebrtp, uint32_t *rtn_count);
+void ifconfig_veb_free_veb_showaddr(struct ifconfig_veb_rtnode *vebrt);
+int ifconfig_veb_set_timeout(ifconfig_handle_t *h,
+    const char *ifname, int value);
+int ifconfig_veb_set_maxaddr(ifconfig_handle_t *h,
+    const char *ifname, int maxaddr);
+int ifconfig_veb_add_port(ifconfig_handle_t *h,
+    const char *ifname, const char *portname);
+int ifconfig_veb_del_port(ifconfig_handle_t *h,
+    const char *ifname, const char *portname);
+int ifconfig_veb_add_static(ifconfig_handle_t *h, const char *ifname,
+    const char *portname, struct ether_addr *ea, ether_vlanid_t vlan);
+int ifconfig_veb_del_addr(ifconfig_handle_t *h, const char *ifname,
+    struct ether_addr *ea, ether_vlanid_t vlan);
+int ifconfig_veb_set_port_maxaddr(ifconfig_handle_t *h, const char *ifname,
+    const char *portname, uint32_t maxaddr);
+int ifconfig_veb_set_port_flag(ifconfig_handle_t *h, const char *ifname,
+    const char *portname, int attr, bool on);
+int ifconfig_veb_flush(ifconfig_handle_t *h,
+    const char *ifname, bool all);
+
 /** Retrieve additional information about an inet address
  * @param h	An open ifconfig state object
  * @param name	The interface name

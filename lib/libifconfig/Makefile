@@ -18,7 +18,8 @@ SRCS=		libifconfig.c \
 		libifconfig_lagg.c \
 		libifconfig_media.c \
 		libifconfig_nl.c \
-		libifconfig_sfp.c
+		libifconfig_sfp.c \
+		libifconfig_veb.c
 
 GEN=		libifconfig_sfp_tables.h \
 		libifconfig_sfp_tables.c \

@@ -966,6 +966,11 @@ device		edsc
 #  Ethernet interface
 device		tuntap
 
+#  The `veb` device implements a minimal L2 Ethernet bridge
+#  for virtual topologies. It also includes a `vport` device that can be
+#  added to a veb for communication with the host network stack.
+device    veb
+
 #  The `gif' device implements IPv6 over IP4 tunneling,
 #  IPv4 over IPv6 tunneling, IPv4 over IPv4 tunneling and
 #  IPv6 over IPv6 tunneling.

@@ -4289,6 +4289,7 @@ net/if_mib.c			standard
 net/if_ovpn.c			optional ovpn inet | ovpn inet6
 net/if_stf.c			optional stf inet inet6
 net/if_tuntap.c			optional tuntap
+net/if_veb.c 			optional veb
 net/if_vlan.c			optional vlan
 net/if_vxlan.c			optional vxlan inet | vxlan inet6
 net/if_geneve.c			optional geneve inet | geneve inet6

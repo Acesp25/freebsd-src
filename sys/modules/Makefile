@@ -171,6 +171,7 @@ SUBDIR=	\
 	if_ovpn \
 	${_if_stf} \
 	if_tuntap \
+	if_veb \
 	if_vlan \
 	if_vxlan \
 	if_geneve \
