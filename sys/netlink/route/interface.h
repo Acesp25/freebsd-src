@@ -422,4 +422,33 @@ struct ifla_geneve_port_range {
 	uint16_t high;
 };
 
+/* IFLA_INFO_DATA veb attributes */
+enum {
+	IFLA_VEB_UNSPEC,
+	IFLA_VEB_PORT,			/* nested, dump-only */
+	IFLA_VEB_ADDPORT,		/* string, request-only */
+	IFLA_VEB_DELPORT,		/* string, request-only */
+	IFLA_VEB_SETPORT,		/* nested, request-only */
+	IFLA_VEB_RTABLE_FLUSH,		/* bool (flush all), request-only */
+	IFLA_VEB_RTABLE_TIMEOUT,	/* u32 */
+	IFLA_VEB_RTABLE_MAXADDR,	/* u32 */
+	IFLA_VEB_RTABLE_EXCEEDED,	/* u32, dump-only */
+	__IFLA_VEB_MAX,
+};
+#define IFLA_VEB_MAX		(__IFLA_VEB_MAX - 1)
+
+/* IFLA_VEB_PORT attributes */
+enum {
+	IFLA_VEB_PORT_UNSPEC,
+	IFLA_VEB_PORT_IFNAME,		/* string */
+	IFLA_VEB_PORT_MAXADDR,		/* u32 */
+	IFLA_VEB_PORT_LEARNING,		/* bool */
+	IFLA_VEB_PORT_DISCOVER,		/* bool */
+	IFLA_VEB_PORT_STICKY,		/* bool */
+	IFLA_VEB_PORT_PRIVATE,		/* bool */
+	IFLA_VEB_PORT_VPORT,		/* bool, dump-only */
+	__IFLA_VEB_PORT_MAX,
+};
+#define IFLA_VEB_PORT_MAX	(__IFLA_VEB_PORT_MAX - 1)
+
 #endif

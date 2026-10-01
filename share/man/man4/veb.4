@@ -1,0 +1,266 @@
+.\"-
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2026 Aaron Espinoza <acesp25@freebsd.org>
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\" notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd October 18, 2026
+.Dt VEB 4
+.Os
+.Sh NAME
+.Nm veb ,
+.Nm vport
+.Nd Virtual Ethernet Bridge pseudo network device
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device veb"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_veb_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides a Layer 2 Ethernet bridge for virtual network
+topologies such as
+.Xr bhyve 8
+VMs and VNET
+.Xr jail 8 Ns s .
+As opposed to
+.Xr bridge 4 ,
+it does not support the Spanning Tree Protocol,
+.Xr pfil 9
+packet filtering, or implicit host membership.
+.Pp
+Each
+.Nm
+interface is created at runtime using interface cloning.
+This is most easily done with the
+.Xr ifconfig 8
+.Cm create
+command or using the
+.Va cloned_interfaces
+variable in
+.Xr rc.conf 5 .
+.Nm vport
+interfaces are created the same way.
+The
+.Nm
+can be configured via
+.Xr netlink 4
+using
+.Xr ifconfig 8 .
+.Ss Host presence
+The
+.Nm
+interface has no host presence.
+It cannot be assigned any
+.Xr inet 4
+or
+.Xr inet6 4
+address, it does not deliver frames to the host network stack, and it
+does not transmit frames originating from the host.
+.Pp
+To connect the host to a
+.Nm ,
+create a
+.Nm vport
+interface and add it to the
+.Nm
+as a port.
+A
+.Nm vport
+acts as an ordinary Ethernet interface to the host;
+addresses assigned to it are reachable from other ports, and traffic
+the host transmits is forwarded by the
+.Nm .
+Addresses can only be assigned to a
+.Nm vport
+while it is a port of a
+.Nm .
+A
+.Nm
+can have at most one
+.Nm vport ,
+and a
+.Nm vport
+can be a port of only one
+.Nm
+at any given time.
+.Ss Ports
+Ethernet and
+.Xr vlan 4
+interfaces can be added to the
+.Nm
+as ports.
+An interface can be a port of only one
+.Nm
+and cannot be a port or member of both a
+.Nm
+and a
+.Xr bridge 4
+at the same time.
+A
+.Xr vlan 4
+interface whose parent is a
+.Xr bridge 4
+or a
+.Nm
+cannot be added.
+.Pp
+An interface must not have an IPv4 address when it is added.
+On addition, if the interface has an IPv6 link-local address, all of its
+IPv6 addresses are removed and a message is logged.
+The interface is then placed into promiscuous mode and isolated from
+the host network stack:
+no addresses can be assigned to it and its capabilities cannot be
+changed.
+Promiscuous mode and capabilities are restored when the port is
+removed.
+.Pp
+The MTU of a
+.Nm
+is set by the first port that is added to it.
+All subsequent ports are set to that MTU.
+If the MTU of a
+.Nm
+is changed, every port of that
+.Nm
+is adjusted to match.
+The MTU of any port, including a
+.Nm vport ,
+cannot be changed directly while being a port.
+.Pp
+The TOE, TSO, TXCSUM, TXCSUM_IPV6, and MEXTPG capabilities remain
+enabled on the ports only if every port has them enabled.
+LRO is always disabled on the ports.
+Because the
+.Nm vport
+supports none of the transmit offloads, adding a
+.Nm vport
+disables them on all ports.
+.Ss Forwarding
+Just like
+.Xr bridge 4 ,
+the
+.Nm
+learns the source address of each frame it receives, indexed by
+Ethernet address and VLAN ID.
+Unicast frames destined for a known address are only forwarded out the
+port on which that address was learned;
+broadcast and multicast frames are forwarded to all other ports.
+Unicast frames destined for an unknown address are forwarded to all
+other ports with the
+.Li DISCOVER
+flag set.
+Frames addressed to the reserved IEEE 802.1D group addresses
+.Li 01:80:c2:00:00:00
+to
+.Li 01:80:c2:00:00:0f
+are not forwarded.
+VLAN tags are passed through unaltered as the
+.Nm
+currently has no VLAN filtering capability.
+If a port is the parent of a
+.Xr vlan 4
+interface, all VLAN-tagged frames received on that port are passed to
+.Xr vlan 4
+rather than being forwarded by the veb.
+By default, the address cache holds 2000 entries, and an entry expires 1200
+seconds after the last frame from that address is seen.
+A sweep removes all expired entries every 300 seconds.
+Both values can be configured per
+.Nm .
+Static entries do not expire.
+.Pp
+Each port has the following flags.
+Newly added ports have
+.Li LEARNING
+and
+.Li DISCOVER
+set automatically.
+.Bl -tag -width "DISCOVER"
+.It Li LEARNING
+Learn source addresses from frames received on the port.
+.It Li DISCOVER
+Receive copies of unicast frames to unknown addresses.
+.It Li STICKY
+Addresses learned on the port do not expire and do not move to another
+port.
+.It Li PRIVATE
+Do not forward frames between this port and any other
+.Li PRIVATE
+port.
+.It Li VPORT
+Read-only; set on the port that is the
+.Nm Ns 's
+.Nm vport .
+.El
+.Pp
+The link state of a
+.Nm
+is up when at least one port other than the
+.Nm vport
+has link, or when the
+.Nm
+has ports but none of them, besides the
+.Nm vport ,
+reports a link state.
+.Sh SYSCTL VARIABLES
+.Bl -tag -width indent
+.It Va net.link.veb.log_mac_flap
+Log a message when an address moves between ports.
+Defaults to 1.
+.El
+.Sh SEE ALSO
+.Xr bridge 4 ,
+.Xr epair 4 ,
+.Xr inet 4 ,
+.Xr inet6 4 ,
+.Xr netlink 4 ,
+.Xr vlan 4 ,
+.Xr loader.conf 5 ,
+.Xr rc.conf 5 ,
+.Xr bhyve 8 ,
+.Xr ifconfig 8 ,
+.Xr jail 8 ,
+.Xr ifnet 9 ,
+.Xr pfil 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 16.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm veb
+driver and this manual page were written by
+.An Aaron Espinoza Aq Mt acesp25@FreeBSD.org .

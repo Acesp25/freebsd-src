@@ -2283,7 +2283,11 @@ bridge_ifdetach(void *arg __unused, struct ifnet *ifp)
 	struct bridge_iflist *bif = ifp->if_bridge;
 	struct bridge_softc *sc = NULL;
 
-	if (bif)
+	/*
+	 * Veb ports also use ifp->if_bridge,
+	 * check that we own this entry (if there is one).
+	 */
+	if (bif && ifp->if_bridge_input == bridge_input)
 		sc = bif->bif_sc;
 
 	if (V_bridge_cloner == NULL) {
