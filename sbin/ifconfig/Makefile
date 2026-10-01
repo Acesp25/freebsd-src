@@ -72,6 +72,7 @@ LIBADD+=	nv
 SRCS+=	ifconfig_netlink.c
 SRCS+=	ifvfstatus.c		# VF status information
 SRCS+=	ifgeneve.c		# GENEVE support
+SRCS+=	ifveb.c			# VEB support
 .else
 CFLAGS+=-DWITHOUT_NETLINK
 .endif

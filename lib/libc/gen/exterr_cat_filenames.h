@@ -21,5 +21,6 @@
 	[EXTERR_CAT_INOTIFY] = "kern/vfs_inotify.c",
 	[EXTERR_CAT_VFSSYSCALL] = "kern/vfs_syscalls.c",
 	[EXTERR_CAT_BRIDGE] = "net/if_bridge.c",
+	[EXTERR_CAT_VEB] = "net/if_veb.c",
 	[EXTERR_CAT_SWAP] = "vm/swap_pager.c",
 	[EXTERR_CAT_MMAP] = "vm/vm_mmap.c",
